@@ -41,7 +41,7 @@ else:
     res = res['data']['exchanges']
 
     # Historic api
-    try:
+    """try:
         historicParam = {
             "exchange": "NSE",
             "symboltoken": "3045",
@@ -53,7 +53,14 @@ else:
         logger.info(f"Candle Data:\n{candles}")
     except Exception as e:
         logger.exception(f"Historic Api failed: {e}")
-    
+    """
+    # fetch Holdings / Portfolio
+    try:
+        portfolio = smartApi.holding()
+        logger.info(f"Portfolio Data:\n{portfolio}")
+    except Exception as e:
+        logger.exception(f"Portfolio fetch failed: {e}")
+
     # logout
     try:
         logout = smartApi.terminateSession(username)
