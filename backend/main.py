@@ -1,7 +1,17 @@
 from fastapi import FastAPI, Query
 from smartapi_utils import get_portfolio_data, get_historic_data
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+# Allow requests from your frontend (localhost:8080)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8080"],  # or use ["*"] for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
