@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "smartapi-angelone"
+version = "0.1.0"
+description = "SmartAPI integration"
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<3.8"
+fastapi = "*"
+uvicorn = "*"
+python-dotenv = "*"
+SmartApi = "*"
+pyotp = "*"
+logzero = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
