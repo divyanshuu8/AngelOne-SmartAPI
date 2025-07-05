@@ -7,7 +7,7 @@ app = FastAPI()
 # Allow requests from your frontend (localhost:8080)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://gourav-equity.netlify.app"],  # or use ["*"] for development
+    allow_origins=["*"],  # or use ["*"] for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

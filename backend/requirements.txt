@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-python-dotenv
-SmartApi
+smartapi-python==1.5.5
 pyotp
+python-dotenv
 logzero
+websocket-client
