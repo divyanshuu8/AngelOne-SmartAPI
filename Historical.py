@@ -3,6 +3,11 @@ from SmartApi import SmartConnect  # or from SmartApi.smartConnect import SmartC
 import pyotp
 from logzero import logger
 from dotenv import load_dotenv
+import pandas as pd
+from smartmoneyconcepts import smc
+import mplfinance as mpf
+import matplotlib.pyplot as plt
+from datetime import datetime  # <-- this line is required
 import os
 
 # Load environment variables from .env
@@ -25,41 +30,106 @@ except Exception as e:
 correlation_id = "abcde"
 data = smartApi.generateSession(username, pwd, totp)
 
-if data['status'] == False:
+if data["status"] == False:
     logger.error(data)
 
 else:
     # login api call
     # logger.info(f"You Credentials: {data}")
-    authToken = data['data']['jwtToken']
-    refreshToken = data['data']['refreshToken']
+    authToken = data["data"]["jwtToken"]
+    refreshToken = data["data"]["refreshToken"]
     # fetch the feedtoken
     feedToken = smartApi.getfeedToken()
     # fetch User Profile
     res = smartApi.getProfile(refreshToken)
     smartApi.generateToken(refreshToken)
-    res = res['data']['exchanges']
+    res = res["data"]["exchanges"]
 
     # Historic api
-    """try:
+    try:
         historicParam = {
             "exchange": "NSE",
             "symboltoken": "3045",
-            "interval": "ONE_MINUTE",
+            "interval": "FIVE_MINUTE",
             "fromdate": "2025-07-02 09:15",
-            "todate": "2025-07-02 09:30"
+            "todate": "2025-07-02 15:30",
         }
         candles = smartApi.getCandleData(historicParam)
-        logger.info(f"Candle Data:\n{candles}")
+
+        formatted_data = []
+        for d in candles["data"]:
+            try:
+                ts = pd.to_datetime(d[0])  # handles both ISO and "YYYY-MM-DD HH:MM:SS"
+                formatted_data.append(
+                    {
+                        "timestamp": ts,
+                        "open": float(d[1]),
+                        "high": float(d[2]),
+                        "low": float(d[3]),
+                        "close": float(d[4]),
+                        "volume": int(d[5]),
+                    }
+                )
+            except Exception as e:
+                print(f"Skipping bad row {d}: {e}")
+
+        # Convert to DataFrame
+        df = pd.DataFrame(
+            formatted_data,
+            columns=["timestamp", "open", "high", "low", "close", "volume"],
+        )
+
+        # If timestamp is string, convert to datetime
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df.set_index("timestamp", inplace=True)
+
+        # Detect FVG using your smc library
+        fvg = smc.fvg(df.reset_index(), join_consecutive=False)
+        print(fvg)
+
+        # Assuming fvg is a list of dicts with 'start', 'end', 'low', 'high'
+        # shapes = []
+        # for gap in fvg:
+        #     start_time = pd.to_datetime(gap["start"])
+        #     end_time = pd.to_datetime(gap["end"])
+        #     low_price = gap["low"]
+        #     high_price = gap["high"]
+
+        #     shapes.append(
+        #         dict(
+        #             type="rect",
+        #             x0=start_time,
+        #             x1=end_time,
+        #             y0=low_price,
+        #             y1=high_price,
+        #             facecolor="yellow",
+        #             alpha=0.3,
+        #         )
+        #     )
+
+        # Plot candlestick chart
+        # mpf.plot(
+        #     df,
+        #     type="candle",
+        #     style="charles",
+        #     title="Candlestick Chart with FVG",
+        #     ylabel="Price",
+        #     addplot=[],
+        #     fill_between=shapes,
+        # )
+
+        # ---logger.info(f"Candle Data:\n{candles['data']}")
     except Exception as e:
         logger.exception(f"Historic Api failed: {e}")
-    """
+
     # fetch Holdings / Portfolio
+    """
     try:
         portfolio = smartApi.holding()
         logger.info(f"Portfolio Data:\n{portfolio}")
     except Exception as e:
         logger.exception(f"Portfolio fetch failed: {e}")
+    """
 
     # logout
     try:
