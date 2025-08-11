@@ -52,7 +52,7 @@ else:
             "symboltoken": "3045",
             "interval": "FIVE_MINUTE",
             "fromdate": "2025-07-02 09:15",
-            "todate": "2025-07-02 15:30",
+            "todate": "2025-07-05 15:30",
         }
         candles = smartApi.getCandleData(historicParam)
 
@@ -85,7 +85,30 @@ else:
 
         # Detect FVG using your smc library
         fvg = smc.fvg(df.reset_index(), join_consecutive=False)
-        print(fvg)
+        fvg_filtered = fvg[fvg["FVG"].notna()].copy()
+        fvg_filtered["Timestamp"] = df.index[fvg_filtered.index]
+        print(fvg_filtered)
+
+        # Implement swing highs and lows
+        swing_highs_lows_df = smc.swing_highs_lows(df, swing_length=15)
+
+        # Detect BOS and CHoCH
+        bos_choch = smc.bos_choch(df, swing_highs_lows_df, close_break=True)
+        bos_choch = bos_choch[bos_choch["Level"].notna()].copy()
+        bos_choch["Timestamp"] = df.index[bos_choch.index]
+        print(bos_choch)
+
+        # Detect Order Blocks
+        ob = smc.ob(df, swing_highs_lows_df, close_mitigation=False)
+        ob = ob[ob["OB"].notna()].copy()
+        ob["Timestamp"] = df.index[ob.index]
+        print(ob)
+
+        # Detect Liquidity
+        liquidity = smc.liquidity(df, swing_highs_lows_df, range_percent=0.05)
+        liquidity = liquidity[liquidity["Liquidity"].notna()].copy()
+        liquidity["Timestamp"] = df.index[liquidity.index]
+        print(liquidity)
 
         # Assuming fvg is a list of dicts with 'start', 'end', 'low', 'high'
         # shapes = []
