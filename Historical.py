@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 import json
 
 #-- Editables - Data
-symbol = "18391"
-symbolName = "RBL"
+symbol = "13528"
+symbolName = "GMRA"
 
 # ------------------ Load environment variables ------------------
 load_dotenv()
@@ -45,20 +45,20 @@ timeframes = [
     {
         "name": "5m",
         "interval": "FIVE_MINUTE",
-        "fromdate": "2025-08-12 09:15",
-        "todate": "2025-08-14 15:30",
+        "fromdate": "2025-08-13 09:15",
+        "todate": "2025-08-18 15:30",
     },
     {
         "name": "1h",
         "interval": "ONE_HOUR",
-        "fromdate": "2025-07-14 09:15",
-        "todate": "2025-08-14 15:30",
+        "fromdate": "2025-07-18 09:15",
+        "todate": "2025-08-18 15:30",
     },
     {
         "name": "1d",
         "interval": "ONE_DAY",
-        "fromdate": "2025-02-14 09:15",
-        "todate": "2025-08-14 15:30",
+        "fromdate": "2025-02-18 09:15",
+        "todate": "2025-08-18 15:30",
     },
 ]
 
