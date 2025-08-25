@@ -8,9 +8,47 @@ import os
 from datetime import datetime, timedelta
 import json
 
-#-- Editables - Data
-symbol = "13528"
-symbolName = "GMRA"
+# -- Editables - Data
+symbol = "2885"
+symbolName = "Reliance"
+prompt_text = """You will receive JSON data in the format:
+{
+  "symbol": "...",
+  "timeframes": {
+    "5m": { ... },      // Current day intraday OHLC + SMC annotations (FVG, OB, BOS/CHOCH, liquidity)
+    "1h": { ... },      // Higher timeframe OHLC + SMC annotations
+    "1d": { ... },      // Daily OHLC + SMC annotations
+    "10m_prev_day": { ... } // Previous day's 10-minute pure OHLCV candles (no annotations)
+  }
+}
+Your task:
+Analyze the 5-minute timeframe to generate at least two possible trade setups for the next candle after the latest 5m bar.
+Use the 1h and 1d timeframes to determine higher-timeframe bias and important zones.
+Use the previous day’s 10m OHLCV data to identify:
+Key supply/demand zones from the previous day
+Previous day’s high/low/midpoint and liquidity pools
+Significant volume spikes or reaction levels that could act as intraday magnets
+
+For each setup, include:
+Direction: Buy or Sell
+Confidence score: 0–10
+Entry price range
+Stop loss
+Take profit(s): Can have multiple target levels
+Reasoning: Up to 5 bullet points showing how FVG, OB, BOS/CHOCH, liquidity, HTF bias, and previous day’s levels support the trade
+Invalidation scenario: What would make this setup invalid, plus the alternate trade idea
+
+Rules:
+Favor fresh unmitigated OB/FVG near price for high-probability entries.
+If BOS is bullish in 5m and aligned with HTF structure → prioritize longs; if opposite → consider countertrend scalp.
+
+Use previous day’s 10m OHLCV data to filter trades:
+Avoid longs if price is rejecting previous day’s high with heavy selling
+Avoid shorts if price is rejecting previous day’s low with heavy buying
+If liquidity is nearby, explain how it may be targeted before reversal.
+Clearly separate setups for long and short if both are viable.
+Assume a short-term intraday scalp-to-swing style.
+"""
 
 # ------------------ Load environment variables ------------------
 load_dotenv()
@@ -41,26 +79,59 @@ smartApi.getProfile(refreshToken)
 smartApi.generateToken(refreshToken)
 
 # ------------------ Define intervals ------------------
+# ------------------ Calculate last trading day ------------------
+today = datetime.now()
+weekday = today.weekday()  # Monday=0, Sunday=6
+
+# Determine last trading day
+if weekday == 0:  # Monday
+    last_trading_day = today - timedelta(days=3)  # Friday
+elif weekday == 6:  # Sunday
+    last_trading_day = today - timedelta(days=2)  # Friday
+elif weekday == 5:  # Saturday
+    last_trading_day = today - timedelta(days=1)  # Friday
+else:
+    last_trading_day = today - timedelta(days=1)  # Other days
+
+# ------------------ Define dynamic intervals ------------------
 timeframes = [
     {
         "name": "5m",
         "interval": "FIVE_MINUTE",
-        "fromdate": "2025-08-13 09:15",
-        "todate": "2025-08-18 15:30",
+        "fromdate": (last_trading_day - timedelta(days=4))
+        .replace(hour=9, minute=15)
+        .strftime("%Y-%m-%d %H:%M"),
+        "todate": last_trading_day.replace(hour=15, minute=30).strftime(
+            "%Y-%m-%d %H:%M"
+        ),
     },
     {
         "name": "1h",
         "interval": "ONE_HOUR",
-        "fromdate": "2025-07-18 09:15",
-        "todate": "2025-08-18 15:30",
+        "fromdate": (last_trading_day - timedelta(days=30))
+        .replace(hour=9, minute=15)
+        .strftime("%Y-%m-%d %H:%M"),
+        "todate": last_trading_day.replace(hour=15, minute=30).strftime(
+            "%Y-%m-%d %H:%M"
+        ),
     },
     {
         "name": "1d",
         "interval": "ONE_DAY",
-        "fromdate": "2025-02-18 09:15",
-        "todate": "2025-08-18 15:30",
+        "fromdate": (last_trading_day - timedelta(days=180))
+        .replace(hour=9, minute=15)
+        .strftime("%Y-%m-%d %H:%M"),
+        "todate": last_trading_day.replace(hour=15, minute=30).strftime(
+            "%Y-%m-%d %H:%M"
+        ),
     },
 ]
+for tf in timeframes:
+    print(f"Timeframe: {tf['name']}")
+    print(f"  From: {tf['fromdate']}")
+    print(f"  To:   {tf['todate']}")
+    print("-" * 30)
+
 
 # ------------------ Final JSON container ------------------
 final_result_json = {"symbol": "NIFTY", "timeframes": {}}
@@ -221,10 +292,11 @@ def json_serial(obj):
     return str(obj)
 
 
-with open("payload.json", "w") as f:
-    json.dump(final_result_json, f, indent=2, default=json_serial)
+with open("payload.json", "w", encoding="utf-8") as f:
+    f.write(prompt_text + "\n\n")  # write prompt first
+    json.dump(final_result_json, f, indent=2, default=str)  # then the actual JSON
 
-logger.info("✅ Saved payload.json")
+logger.info("✅ Saved payload.json with prompt at the top")
 
 # ------------------ Logout ------------------
 try:
@@ -232,43 +304,3 @@ try:
     logger.info("Logout Successful")
 except Exception as e:
     logger.exception("Logout failed")
-
-"""
-You will receive JSON data in the format:
-{
-  "symbol": "...",
-  "timeframes": {
-    "5m": { ... },      // Current day intraday OHLC + SMC annotations (FVG, OB, BOS/CHOCH, liquidity)
-    "1h": { ... },      // Higher timeframe OHLC + SMC annotations
-    "1d": { ... },      // Daily OHLC + SMC annotations
-    "10m_prev_day": { ... } // Previous day's 10-minute pure OHLCV candles (no annotations)
-  }
-}
-Your task:
-Analyze the 5-minute timeframe to generate at least two possible trade setups for the next candle after the latest 5m bar.
-Use the 1h and 1d timeframes to determine higher-timeframe bias and important zones.
-Use the previous day’s 10m OHLCV data to identify:
-Key supply/demand zones from the previous day
-Previous day’s high/low/midpoint and liquidity pools
-Significant volume spikes or reaction levels that could act as intraday magnets
-
-For each setup, include:
-Direction: Buy or Sell
-Confidence score: 0–10
-Entry price range
-Stop loss
-Take profit(s): Can have multiple target levels
-Reasoning: Up to 5 bullet points showing how FVG, OB, BOS/CHOCH, liquidity, HTF bias, and previous day’s levels support the trade
-Invalidation scenario: What would make this setup invalid, plus the alternate trade idea
-
-Rules:
-Favor fresh unmitigated OB/FVG near price for high-probability entries.
-If BOS is bullish in 5m and aligned with HTF structure → prioritize longs; if opposite → consider countertrend scalp.
-
-Use previous day’s 10m OHLCV data to filter trades:
-Avoid longs if price is rejecting previous day’s high with heavy selling
-Avoid shorts if price is rejecting previous day’s low with heavy buying
-If liquidity is nearby, explain how it may be targeted before reversal.
-Clearly separate setups for long and short if both are viable.
-Assume a short-term intraday scalp-to-swing style.
-"""
