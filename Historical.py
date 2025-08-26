@@ -164,6 +164,7 @@ def process_candles(candles, df_index):
         lambda x: str(df_index.index[int(x)]) if pd.notna(x) and x is not None else None
     )
     bos_choch_list = bos_choch_list.to_dict(orient="records")
+    
 
     # Order blocks
     ob = smc.ob(df_index, swing_highs_lows_df, close_mitigation=False)
