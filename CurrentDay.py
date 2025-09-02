@@ -32,20 +32,53 @@ smartApi.getProfile(refreshToken)
 smartApi.generateToken(refreshToken)
 
 # ------------------ Define today 5m interval ------------------
-symbol = "2885"
-symbolName = "Reliance"
+# Example instrument info:
+# {
+#     "token": "458303",
+#     "symbol": "GOLDPETAL30SEP25FUT",
+#     "name": "GOLDPETAL",
+#     "expiry": "30SEP2025",
+#     "strike": "0.000000",
+#     "lotsize": "1",
+#     "instrumenttype": "FUTCOM",
+#     "exch_seg": "MCX",
+#     "tick_size": "100.000000"
+# }
+
+symbol = "458303"
+exchange = "MCX"  # change to "MCX" if needed
+symbolName = "Gold"
+
+
+# ------------------ Market hours switch ------------------
+def get_market_hours(exchange, date: datetime):
+    if exchange.upper() == "NSE":
+        start = date.replace(hour=9, minute=15, second=0, microsecond=0)
+        end = date.replace(hour=15, minute=30, second=0, microsecond=0)
+    elif exchange.upper() == "MCX":
+        start = date.replace(hour=9, minute=0, second=0, microsecond=0)
+        end = date.replace(hour=23, minute=30, second=0, microsecond=0)
+    else:
+        # default NSE timings
+        start = date.replace(hour=9, minute=15, second=0, microsecond=0)
+        end = date.replace(hour=15, minute=30, second=0, microsecond=0)
+    return start, end
+
 
 today = datetime.now()
-from_time = today.replace(hour=9, minute=15, second=0, microsecond=0)
-to_time = today
+from_time, market_close = get_market_hours(exchange, today)
+to_time = today if today < market_close else market_close
 
 historicParam = {
-    "exchange": "NSE",
+    "exchange": exchange,
     "symboltoken": symbol,
     "interval": "FIVE_MINUTE",
     "fromdate": from_time.strftime("%Y-%m-%d %H:%M"),
     "todate": to_time.strftime("%Y-%m-%d %H:%M"),
 }
+print(f"  From: {historicParam['fromdate']}")
+print(f"  To:   {historicParam['todate']}")
+print("-" * 30)
 
 # ------------------ Fetch candles ------------------
 candles = smartApi.getCandleData(historicParam)

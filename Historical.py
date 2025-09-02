@@ -9,8 +9,22 @@ from datetime import datetime, timedelta
 import json
 
 # -- Editables - Data
-symbol = "2885"
-symbolName = "Reliance"
+# Gold Information
+# {
+#         "token": "458303",
+#         "symbol": "GOLDPETAL30SEP25FUT",
+#         "name": "GOLDPETAL",
+#         "expiry": "30SEP2025",
+#         "strike": "0.000000",
+#         "lotsize": "1",
+#         "instrumenttype": "FUTCOM",
+#         "exch_seg": "MCX",
+#         "tick_size": "100.000000"
+#     },
+
+symbol = "458303"
+symbolName = "Gold"
+exchange = "MCX"
 prompt_text = """You will receive JSON data in the format:
 {
   "symbol": "...",
@@ -78,7 +92,23 @@ feedToken = smartApi.getfeedToken()
 smartApi.getProfile(refreshToken)
 smartApi.generateToken(refreshToken)
 
+
 # ------------------ Define intervals ------------------
+def get_market_hours(exchange, date):
+    """Return (start_time, end_time) strings based on exchange."""
+    if exchange.upper() == "NSE":
+        start = f"{date} 09:15"
+        end = f"{date} 15:30"
+    elif exchange.upper() == "MCX":
+        start = f"{date} 09:00"
+        end = f"{date} 23:30"
+    else:
+        # default to NSE timings if unknown
+        start = f"{date} 09:15"
+        end = f"{date} 15:30"
+    return start, end
+
+
 # ------------------ Calculate last trading day ------------------
 today = datetime.now()
 weekday = today.weekday()  # Monday=0, Sunday=6
@@ -95,37 +125,23 @@ else:
 
 # ------------------ Define dynamic intervals ------------------
 timeframes = [
-    {
-        "name": "5m",
-        "interval": "FIVE_MINUTE",
-        "fromdate": (last_trading_day - timedelta(days=4))
-        .replace(hour=9, minute=15)
-        .strftime("%Y-%m-%d %H:%M"),
-        "todate": last_trading_day.replace(hour=15, minute=30).strftime(
-            "%Y-%m-%d %H:%M"
-        ),
-    },
-    {
-        "name": "1h",
-        "interval": "ONE_HOUR",
-        "fromdate": (last_trading_day - timedelta(days=30))
-        .replace(hour=9, minute=15)
-        .strftime("%Y-%m-%d %H:%M"),
-        "todate": last_trading_day.replace(hour=15, minute=30).strftime(
-            "%Y-%m-%d %H:%M"
-        ),
-    },
-    {
-        "name": "1d",
-        "interval": "ONE_DAY",
-        "fromdate": (last_trading_day - timedelta(days=180))
-        .replace(hour=9, minute=15)
-        .strftime("%Y-%m-%d %H:%M"),
-        "todate": last_trading_day.replace(hour=15, minute=30).strftime(
-            "%Y-%m-%d %H:%M"
-        ),
-    },
+    {"name": "5m", "interval": "FIVE_MINUTE", "lookback_days": 4},
+    {"name": "1h", "interval": "ONE_HOUR", "lookback_days": 30},
+    {"name": "1d", "interval": "ONE_DAY", "lookback_days": 180},
 ]
+
+for tf in timeframes:
+    fromdate = (last_trading_day - timedelta(days=tf["lookback_days"])).strftime(
+        "%Y-%m-%d"
+    )
+    todate = last_trading_day.strftime("%Y-%m-%d")
+    start, _ = get_market_hours(exchange, fromdate)
+    _, end = get_market_hours(exchange, todate)
+
+    tf["fromdate"] = start
+    tf["todate"] = end
+
+
 for tf in timeframes:
     print(f"Timeframe: {tf['name']}")
     print(f"  From: {tf['fromdate']}")
@@ -134,7 +150,7 @@ for tf in timeframes:
 
 
 # ------------------ Final JSON container ------------------
-final_result_json = {"symbol": "NIFTY", "timeframes": {}}
+final_result_json = {"symbol": symbolName, "timeframes": {}}
 
 
 # ------------------ Helper function to process candles ------------------
@@ -164,7 +180,6 @@ def process_candles(candles, df_index):
         lambda x: str(df_index.index[int(x)]) if pd.notna(x) and x is not None else None
     )
     bos_choch_list = bos_choch_list.to_dict(orient="records")
-    
 
     # Order blocks
     ob = smc.ob(df_index, swing_highs_lows_df, close_mitigation=False)
@@ -206,7 +221,7 @@ def process_candles(candles, df_index):
 for tf in timeframes:
     try:
         historicParam = {
-            "exchange": "NSE",
+            "exchange": exchange,
             "symboltoken": symbol,
             "interval": tf["interval"],
             "fromdate": tf["fromdate"],
@@ -252,12 +267,13 @@ while prev_day.weekday() >= 5:  # Skip weekends
     prev_day -= timedelta(days=1)
 prev_day_str = prev_day.strftime("%Y-%m-%d")
 
+start, end = get_market_hours(exchange, prev_day_str)
 historicParam_10m = {
-    "exchange": "NSE",
+    "exchange": exchange,
     "symboltoken": symbol,
     "interval": "TEN_MINUTE",
-    "fromdate": f"{prev_day_str} 09:30",
-    "todate": f"{prev_day_str} 15:30",
+    "fromdate": start,
+    "todate": end,
 }
 candles_10m = smartApi.getCandleData(historicParam_10m)
 
@@ -280,8 +296,8 @@ for d in candles_10m["data"]:
 
 final_result_json["timeframes"]["10m_prev_day"] = {
     "stock": symbolName,
-    "from": f"{prev_day_str} 09:30",
-    "to": f"{prev_day_str} 15:30",
+    "from": start,
+    "to": end,
     "candles": formatted_10m,  # raw OHLCV data
 }
 
