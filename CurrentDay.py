@@ -45,9 +45,9 @@ smartApi.generateToken(refreshToken)
 #     "tick_size": "100.000000"
 # }
 
-symbol = "458303"
-exchange = "MCX"  # change to "MCX" if needed
-symbolName = "Gold"
+symbol = "4244"
+exchange = "NSE"  # change to "MCX" if needed
+symbolName = "hdfc"
 
 
 # ------------------ Market hours switch ------------------

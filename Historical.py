@@ -22,9 +22,9 @@ import json
 #         "tick_size": "100.000000"
 #     },
 
-symbol = "458303"
-symbolName = "Gold"
-exchange = "MCX"
+symbol = "4244"
+symbolName = "hdfc"
+exchange = "NSE"
 prompt_text = """You will receive JSON data in the format:
 {
   "symbol": "...",
